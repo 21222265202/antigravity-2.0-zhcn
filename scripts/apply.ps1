@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     应用或恢复 Antigravity 2.0 中文汉化。
 
@@ -27,23 +27,15 @@ if (-not (Test-Path "$appOut\nls.messages.json")) {
     exit 1
 }
 
-# 检查进程
-$running = Get-Process -Name "Antigravity" -ErrorAction SilentlyContinue
-if ($running) {
-    Write-Warning "Antigravity 正在运行，请先关闭后再操作。"
-    $choice = Read-Host "是否强制关闭? (y/N)"
-    if ($choice -eq "y") {
-        $running | Stop-Process -Force
-        Start-Sleep -Seconds 2
-    } else {
-        exit 0
-    }
-}
+# 提示手动重启
+Write-Host "提示: 汉化文件将在复制后生效，请在安装完毕后手动重启 Antigravity。" -ForegroundColor Yellow
+
 
 if ($Restore) {
     # 恢复模式
     Write-Host "`n[恢复] 恢复英文原版..." -ForegroundColor Yellow
 
+    # 1. 恢复 nls.messages.json
     $backupFile = "$appOut\nls.messages.json.bak"
     if (Test-Path $backupFile) {
         Copy-Item $backupFile "$appOut\nls.messages.json" -Force
@@ -53,11 +45,35 @@ if ($Restore) {
         exit 1
     }
 
-    # 恢复 jetskiAgent 补丁
+    # 2. 恢复 jetskiAgent 补丁
     $jetskiBak = "$appOut\jetskiAgent\main.js.bak"
     if (Test-Path $jetskiBak) {
         Copy-Item $jetskiBak "$appOut\jetskiAgent\main.js" -Force
         Write-Host "  已恢复 jetskiAgent/main.js" -ForegroundColor Green
+    }
+
+    # 3. 恢复 product.json
+    $productBak = "$AntigravityPath\resources\app\product.json.bak"
+    if (Test-Path $productBak) {
+        Copy-Item $productBak "$AntigravityPath\resources\app\product.json" -Force
+        Write-Host "  已恢复 product.json" -ForegroundColor Green
+    }
+
+    # 4. 恢复 5 个扩展的 package.json
+    $extDir = "$AntigravityPath\resources\app\extensions"
+    $agyExtensions = @(
+        "antigravity",
+        "antigravity-code-executor",
+        "antigravity-dev-containers",
+        "antigravity-remote-openssh",
+        "antigravity-remote-wsl"
+    )
+    foreach ($ext in $agyExtensions) {
+        $extPkgBak = "$extDir\$ext\package.json.bak"
+        if (Test-Path $extPkgBak) {
+            Copy-Item $extPkgBak "$extDir\$ext\package.json" -Force
+            Write-Host "  已恢复 $ext/package.json" -ForegroundColor Green
+        }
     }
 
     Write-Host "`n恢复完成！请重启 Antigravity。" -ForegroundColor Cyan
@@ -83,8 +99,29 @@ if ($Restore) {
     if (-not (Test-Path "$appOut\jetskiAgent\main.js.bak")) {
         Copy-Item "$appOut\jetskiAgent\main.js" "$appOut\jetskiAgent\main.js.bak" -Force
     }
+    if (-not (Test-Path "$AntigravityPath\resources\app\product.json.bak")) {
+        Copy-Item "$AntigravityPath\resources\app\product.json" "$AntigravityPath\resources\app\product.json.bak" -Force
+    }
 
-    # 应用 NLS 翻译
+    # 备份 5 个扩展的 package.json
+    $extDir = "$AntigravityPath\resources\app\extensions"
+    $agyExtensions = @(
+        "antigravity",
+        "antigravity-code-executor",
+        "antigravity-dev-containers",
+        "antigravity-remote-openssh",
+        "antigravity-remote-wsl"
+    )
+    foreach ($ext in $agyExtensions) {
+        $extPath = "$extDir\$ext"
+        if (Test-Path $extPath) {
+            if (-not (Test-Path "$extPath\package.json.bak")) {
+                Copy-Item "$extPath\package.json" "$extPath\package.json.bak" -Force
+            }
+        }
+    }
+
+    # 1. 应用 NLS 翻译
     $translationFile = Join-Path $ProjectRoot "translations\nls.messages.zh-CN.json"
     if (Test-Path $translationFile) {
         Copy-Item $translationFile "$appOut\nls.messages.json" -Force
@@ -93,7 +130,7 @@ if ($Restore) {
         Write-Warning "NLS 翻译文件不存在: $translationFile"
     }
 
-    # 应用 jetskiAgent 补丁
+    # 2. 应用 jetskiAgent 补丁
     $jetskiPatch = Join-Path $ProjectRoot "patches\jetskiAgent.patch.js"
     if (Test-Path $jetskiPatch) {
         # 读取补丁脚本执行替换
@@ -104,6 +141,23 @@ if ($Restore) {
         }
         [System.IO.File]::WriteAllText("$appOut\jetskiAgent\main.js", $jetskiContent, [System.Text.Encoding]::UTF8)
         Write-Host "  已应用 jetskiAgent 补丁" -ForegroundColor Green
+    }
+
+    # 3. 应用 product.json 翻译
+    $productTrans = Join-Path $ProjectRoot "translations\product.json"
+    if (Test-Path $productTrans) {
+        Copy-Item $productTrans "$AntigravityPath\resources\app\product.json" -Force
+        Write-Host "  已应用 product.json 翻译" -ForegroundColor Green
+    }
+
+    # 4. 应用 5 个扩展的 package.json 翻译
+    foreach ($ext in $agyExtensions) {
+        $extPkgTrans = Join-Path $ProjectRoot "translations\extensions\$ext\package.json"
+        $extPkgDest = "$extDir\$ext\package.json"
+        if (Test-Path $extPkgTrans) {
+            Copy-Item $extPkgTrans $extPkgDest -Force
+            Write-Host "  已应用 $ext/package.json 翻译" -ForegroundColor Green
+        }
     }
 
     Write-Host "`n汉化安装完成！请重启 Antigravity。" -ForegroundColor Cyan
