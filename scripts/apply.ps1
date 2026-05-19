@@ -1,13 +1,11 @@
-﻿<#
+<#
 .SYNOPSIS
-    应用或恢复 Antigravity 2.0 中文汉化。
-
+    Apply or restore Antigravity 2.0 Chinese localization.
 .PARAMETER Restore
-    恢复为英文原版。
-
+    Restore the original English version.
 .EXAMPLE
-    .\apply.ps1           # 应用汉化
-    .\apply.ps1 -Restore  # 恢复英文
+    .\apply.ps1
+    .\apply.ps1 -Restore
 #>
 [CmdletBinding()]
 param(
@@ -18,48 +16,40 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
-Write-Host "=== Antigravity 2.0 汉化安装工具 ===" -ForegroundColor Cyan
+Write-Host "=== Antigravity 2.0 Chinese Localization Tool ===" -ForegroundColor Cyan
 
-# 检测安装
+# Verify path
 $appOut = "$AntigravityPath\resources\app\out"
 if (-not (Test-Path "$appOut\nls.messages.json")) {
-    Write-Error "未找到 Antigravity NLS 文件: $appOut"
+    Write-Error "Antigravity installation not found at: $AntigravityPath"
     exit 1
 }
 
-# 提示手动重启
-Write-Host "提示: 汉化文件将在复制后生效，请在安装完毕后手动重启 Antigravity。" -ForegroundColor Yellow
-
-
 if ($Restore) {
-    # 恢复模式
-    Write-Host "`n[恢复] 恢复英文原版..." -ForegroundColor Yellow
+    Write-Host "`n[Restore] Restoring original English files..." -ForegroundColor Yellow
 
-    # 1. 恢复 nls.messages.json
+    # 1. Restore app.asar
+    $asarPath = "$AntigravityPath\resources\app.asar"
+    if (Test-Path "$asarPath.bak") {
+        Copy-Item "$asarPath.bak" $asarPath -Force
+        Write-Host "  Restored app.asar" -ForegroundColor Green
+    }
+
+    # 2. Restore nls.messages.json
     $backupFile = "$appOut\nls.messages.json.bak"
     if (Test-Path $backupFile) {
         Copy-Item $backupFile "$appOut\nls.messages.json" -Force
-        Write-Host "  已恢复 nls.messages.json" -ForegroundColor Green
-    } else {
-        Write-Error "未找到备份文件: $backupFile"
-        exit 1
+        Write-Host "  Restored nls.messages.json" -ForegroundColor Green
     }
 
-    # 2. 恢复 jetskiAgent 补丁
-    $jetskiBak = "$appOut\jetskiAgent\main.js.bak"
-    if (Test-Path $jetskiBak) {
-        Copy-Item $jetskiBak "$appOut\jetskiAgent\main.js" -Force
-        Write-Host "  已恢复 jetskiAgent/main.js" -ForegroundColor Green
-    }
-
-    # 3. 恢复 product.json
+    # 3. Restore product.json
     $productBak = "$AntigravityPath\resources\app\product.json.bak"
     if (Test-Path $productBak) {
         Copy-Item $productBak "$AntigravityPath\resources\app\product.json" -Force
-        Write-Host "  已恢复 product.json" -ForegroundColor Green
+        Write-Host "  Restored product.json" -ForegroundColor Green
     }
 
-    # 4. 恢复 5 个扩展的 package.json
+    # 4. Restore extensions
     $extDir = "$AntigravityPath\resources\app\extensions"
     $agyExtensions = @(
         "antigravity",
@@ -72,38 +62,81 @@ if ($Restore) {
         $extPkgBak = "$extDir\$ext\package.json.bak"
         if (Test-Path $extPkgBak) {
             Copy-Item $extPkgBak "$extDir\$ext\package.json" -Force
-            Write-Host "  已恢复 $ext/package.json" -ForegroundColor Green
+            Write-Host "  Restored $ext/package.json" -ForegroundColor Green
         }
     }
 
-    Write-Host "`n恢复完成！请重启 Antigravity。" -ForegroundColor Cyan
-} else {
-    # 汉化模式
-    Write-Host "`n[安装] 应用中文汉化..." -ForegroundColor Yellow
-
-    # 版本检查
-    $versionFile = Join-Path $ProjectRoot "version.json"
-    $version = Get-Content $versionFile -Raw | ConvertFrom-Json
-    $pkgJson = Get-Content "$AntigravityPath\resources\app\package.json" -Raw | ConvertFrom-Json
-    if ($pkgJson.version -ne $version.internalVersion) {
-        Write-Warning "版本不匹配! 汉化包: $($version.internalVersion), 当前: $($pkgJson.version)"
-        $choice = Read-Host "继续安装? (y/N)"
-        if ($choice -ne "y") { exit 0 }
+    # 5. Clean up translated UI file from UserData
+    $appDataPath = "$env:APPDATA\Antigravity"
+    $translatedUiFile = Join-Path $appDataPath "zh_cn_ui_main.js"
+    if (Test-Path $translatedUiFile) {
+        Remove-Item $translatedUiFile -Force
+        Write-Host "  Cleaned up translated UI main bundle" -ForegroundColor Green
     }
 
-    # 备份原始文件
-    Write-Host "  备份原始文件..." -ForegroundColor White
+    Write-Host "`nRestore complete! Please restart Antigravity." -ForegroundColor Cyan
+} else {
+    Write-Host "`n[Install] Applying Chinese localization..." -ForegroundColor Yellow
+
+    # Check process occupation
+    $processes = Get-Process -Name "Antigravity" -ErrorAction SilentlyContinue
+    if ($processes) {
+        Write-Warning "Antigravity is currently running! Please close it first."
+        $choice = Read-Host "Kill running processes now? (y/N)"
+        if ($choice -eq "y" -or $choice -eq "Y") {
+            Stop-Process -Name "Antigravity" -Force
+            Start-Sleep -Seconds 2
+            Write-Host "  Stopped Antigravity processes." -ForegroundColor Green
+        } else {
+            Write-Host "Please close the application and run this script again." -ForegroundColor Yellow
+            exit 0
+        }
+    }
+
+    # 1. Run python UI translation script to generate zh_cn_ui_main.js
+    Write-Host "  Generating UI translation resources..." -ForegroundColor White
+    python "$ProjectRoot\scripts\translate_ui.py"
+
+    # 2. Back up and repack app.asar
+    $asarPath = "$AntigravityPath\resources\app.asar"
+    $extractedPath = "$AntigravityPath\resources\extracted_asar"
+    if (Test-Path $extractedPath) {
+        if (-not (Test-Path "$asarPath.bak")) {
+            Copy-Item $asarPath "$asarPath.bak" -Force
+            Write-Host "  Created backup of original app.asar" -ForegroundColor Green
+        }
+        Write-Host "  Repacking app.asar (including interception & window localization)..." -ForegroundColor White
+        npx asar pack $extractedPath $asarPath
+        Write-Host "  Repacked app.asar successfully" -ForegroundColor Green
+    } else {
+        Write-Error "Unpacked directory not found: $extractedPath"
+        exit 1
+    }
+
+    # 3. Apply NLS translations to VS Code core
+    Write-Host "  Applying VS Code core NLS translations..." -ForegroundColor White
     if (-not (Test-Path "$appOut\nls.messages.json.bak")) {
         Copy-Item "$appOut\nls.messages.json" "$appOut\nls.messages.json.bak" -Force
     }
-    if (-not (Test-Path "$appOut\jetskiAgent\main.js.bak")) {
-        Copy-Item "$appOut\jetskiAgent\main.js" "$appOut\jetskiAgent\main.js.bak" -Force
+    $translationFile = Join-Path $ProjectRoot "translations\nls.messages.zh-CN.json"
+    if (Test-Path $translationFile) {
+        Copy-Item $translationFile "$appOut\nls.messages.json" -Force
+        Write-Host "  Applied NLS translations" -ForegroundColor Green
     }
+
+    # 4. Apply product.json translations
+    Write-Host "  Applying product.json translations..." -ForegroundColor White
     if (-not (Test-Path "$AntigravityPath\resources\app\product.json.bak")) {
         Copy-Item "$AntigravityPath\resources\app\product.json" "$AntigravityPath\resources\app\product.json.bak" -Force
     }
+    $productTrans = Join-Path $ProjectRoot "translations\product.json"
+    if (Test-Path $productTrans) {
+        Copy-Item $productTrans "$AntigravityPath\resources\app\product.json" -Force
+        Write-Host "  Applied product.json translations" -ForegroundColor Green
+    }
 
-    # 备份 5 个扩展的 package.json
+    # 5. Apply extensions translations
+    Write-Host "  Applying extension translations..." -ForegroundColor White
     $extDir = "$AntigravityPath\resources\app\extensions"
     $agyExtensions = @(
         "antigravity",
@@ -118,47 +151,13 @@ if ($Restore) {
             if (-not (Test-Path "$extPath\package.json.bak")) {
                 Copy-Item "$extPath\package.json" "$extPath\package.json.bak" -Force
             }
+            $extPkgTrans = Join-Path $ProjectRoot "translations\extensions\$ext\package.json"
+            if (Test-Path $extPkgTrans) {
+                Copy-Item $extPkgTrans "$extPath\package.json" -Force
+                Write-Host "  Applied $ext/package.json translations" -ForegroundColor Green
+            }
         }
     }
 
-    # 1. 应用 NLS 翻译
-    $translationFile = Join-Path $ProjectRoot "translations\nls.messages.zh-CN.json"
-    if (Test-Path $translationFile) {
-        Copy-Item $translationFile "$appOut\nls.messages.json" -Force
-        Write-Host "  已应用 NLS 翻译 (nls.messages.json)" -ForegroundColor Green
-    } else {
-        Write-Warning "NLS 翻译文件不存在: $translationFile"
-    }
-
-    # 2. 应用 jetskiAgent 补丁
-    $jetskiPatch = Join-Path $ProjectRoot "patches\jetskiAgent.patch.js"
-    if (Test-Path $jetskiPatch) {
-        # 读取补丁脚本执行替换
-        $jetskiContent = Get-Content "$appOut\jetskiAgent\main.js" -Raw -Encoding UTF8
-        $patchData = Get-Content $jetskiPatch -Raw -Encoding UTF8 | ConvertFrom-Json
-        foreach ($patch in $patchData) {
-            $jetskiContent = $jetskiContent.Replace($patch.original, $patch.translated)
-        }
-        [System.IO.File]::WriteAllText("$appOut\jetskiAgent\main.js", $jetskiContent, [System.Text.Encoding]::UTF8)
-        Write-Host "  已应用 jetskiAgent 补丁" -ForegroundColor Green
-    }
-
-    # 3. 应用 product.json 翻译
-    $productTrans = Join-Path $ProjectRoot "translations\product.json"
-    if (Test-Path $productTrans) {
-        Copy-Item $productTrans "$AntigravityPath\resources\app\product.json" -Force
-        Write-Host "  已应用 product.json 翻译" -ForegroundColor Green
-    }
-
-    # 4. 应用 5 个扩展的 package.json 翻译
-    foreach ($ext in $agyExtensions) {
-        $extPkgTrans = Join-Path $ProjectRoot "translations\extensions\$ext\package.json"
-        $extPkgDest = "$extDir\$ext\package.json"
-        if (Test-Path $extPkgTrans) {
-            Copy-Item $extPkgTrans $extPkgDest -Force
-            Write-Host "  已应用 $ext/package.json 翻译" -ForegroundColor Green
-        }
-    }
-
-    Write-Host "`n汉化安装完成！请重启 Antigravity。" -ForegroundColor Cyan
+    Write-Host "`nLocalization applied successfully! Please restart Antigravity manually." -ForegroundColor Cyan
 }
