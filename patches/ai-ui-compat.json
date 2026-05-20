@@ -1,0 +1,11 @@
+{
+  "supportedBundles": [
+    {
+      "antigravityVersion": "2.0.0",
+      "ideVersion": "1.23.2",
+      "internalVersion": "1.107.0",
+      "sourceSha256": "F67C94BB6CCA7D520ACEE1871912CBFC93EE54D5812C818886B4911D08415146",
+      "notes": "Initial Antigravity 2.0.0 UI bundle captured from the local scratch extraction."
+    }
+  ]
+}

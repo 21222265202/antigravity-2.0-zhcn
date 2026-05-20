@@ -7,6 +7,7 @@
 #>
 [CmdletBinding()]
 param(
+    [switch]$Update,
     [string]$AntigravityPath = "$env:LOCALAPPDATA\Programs\Antigravity"
 )
 
@@ -24,7 +25,18 @@ if (-not (Test-Path "$AntigravityPath\Antigravity.exe")) {
 
 # 读取版本信息
 $productJson = Get-Content "$AntigravityPath\resources\app\product.json" -Raw | ConvertFrom-Json
-Write-Host "检测到版本: $($productJson.nameShort) IDE=$($productJson.ideVersion)" -ForegroundColor Green
+$exeVersion = $null
+$exePath = Join-Path $AntigravityPath "Antigravity.exe"
+if (Test-Path $exePath) {
+    $exeVersion = (Get-Item $exePath).VersionInfo.FileVersion
+}
+Write-Host "检测到版本: $($productJson.nameShort) App=$exeVersion IDE=$($productJson.ideVersion)" -ForegroundColor Green
+
+$previousMessagesPath = Join-Path $SourceDir "nls.messages.original.json"
+$previousMessages = $null
+if ($Update -and (Test-Path $previousMessagesPath)) {
+    $previousMessages = Get-Content $previousMessagesPath -Raw -Encoding UTF8 | ConvertFrom-Json
+}
 
 # 创建输出目录
 New-Item -Path $SourceDir -ItemType Directory -Force | Out-Null
@@ -145,3 +157,54 @@ if (Test-Path $jetskiJs) {
 Write-Host "`n=== 提取完成 ===" -ForegroundColor Cyan
 Write-Host "总消息数: $($messages.Count)" -ForegroundColor Green
 Write-Host "下一步: 运行翻译生成脚本" -ForegroundColor Yellow
+
+if ($Update) {
+    Write-Host "`n[Update] 生成版本更新报告..." -ForegroundColor Yellow
+    $reportDir = Join-Path $ProjectRoot "releases"
+    New-Item -Path $reportDir -ItemType Directory -Force | Out-Null
+
+    $changedSameIndex = 0
+    if ($previousMessages) {
+        $sharedCount = [Math]::Min($previousMessages.Count, $messages.Count)
+        for ($i = 0; $i -lt $sharedCount; $i++) {
+            if ($previousMessages[$i] -ne $messages[$i]) {
+                $changedSameIndex++
+            }
+        }
+    }
+
+    $uiMainSource = "$env:USERPROFILE\.gemini\antigravity\brain\a12d81c7-05e0-4def-b7bc-6e8543fed692\scratch\ui_main.js"
+    $uiMainHash = $null
+    if (Test-Path $uiMainSource) {
+        $uiMainHash = (Get-FileHash -Algorithm SHA256 -Path $uiMainSource).Hash.ToUpperInvariant()
+    }
+
+    $report = @{
+        generatedAt = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
+        antigravityVersion = $exeVersion
+        ideVersion = $productJson.ideVersion
+        internalVersion = if (Test-Path "$AntigravityPath\resources\app\package.json") {
+            (Get-Content "$AntigravityPath\resources\app\package.json" -Raw | ConvertFrom-Json).version
+        } else {
+            $null
+        }
+        appAsarSha256 = if (Test-Path "$AntigravityPath\resources\app.asar") {
+            (Get-FileHash -Algorithm SHA256 -Path "$AntigravityPath\resources\app.asar").Hash.ToUpperInvariant()
+        } else {
+            $null
+        }
+        nlsMessagesSha256 = (Get-FileHash -Algorithm SHA256 -Path "$SourceDir\nls.messages.original.json").Hash.ToUpperInvariant()
+        uiMainSource = $uiMainSource
+        uiMainSha256 = $uiMainHash
+        previousMessageCount = if ($previousMessages) { $previousMessages.Count } else { $null }
+        currentMessageCount = $messages.Count
+        addedByIndex = if ($previousMessages) { [Math]::Max(0, $messages.Count - $previousMessages.Count) } else { $null }
+        removedByIndex = if ($previousMessages) { [Math]::Max(0, $previousMessages.Count - $messages.Count) } else { $null }
+        changedAtSameIndex = if ($previousMessages) { $changedSameIndex } else { $null }
+        recommendation = "Core translations may be updated after validate.ps1 passes. Enable AI UI only after adding a matching uiMainSha256 to patches/ai-ui-compat.json."
+    }
+
+    $reportPath = Join-Path $reportDir "version-update-report.json"
+    $report | ConvertTo-Json -Depth 5 | Out-File $reportPath -Encoding UTF8
+    Write-Host "  报告已保存: releases/version-update-report.json" -ForegroundColor Green
+}
