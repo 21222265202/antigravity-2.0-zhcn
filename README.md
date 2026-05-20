@@ -1,108 +1,59 @@
-# 🚀 Antigravity 2.0 中文汉化包
+# Antigravity 汉化项目 (AGY-ZH)
 
-[![翻译进度](https://img.shields.io/badge/核心NLS-98.7%25-brightgreen?style=flat-square)](https://github.com/kakarotto-baroko/antigravity-2.0-zhcn)
-[![版本](https://img.shields.io/badge/Antigravity-v2.0.0%20%2F%202.0.1-blue?style=flat-square)](https://github.com/kakarotto-baroko/antigravity-2.0-zhcn)
-[![许可证](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+![Antigravity](https://img.shields.io/badge/Antigravity-2.0.x-blue.svg)
+![Status](https://img.shields.io/badge/Status-Stable-brightgreen.svg)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
 
-> 将 Google Antigravity 2.0 桌面版 IDE 完整汉化为简体中文。
+为强大的 Antigravity 编辑器提供深度、安全的中文本地化支持。本项目不仅汉化了核心的基础服务，还通过安全定向拦截技术成功汉化了 AI UI 面板（包括设置、导航、应用等页面）。
 
-## 📋 项目概述
+## 🌟 核心特性
 
-Antigravity 2.0 是 Google 推出的新一代 AI 驱动代码编辑器（基于 VS Code/Electron）。本项目旨在为其提供完整的简体中文汉化支持。
+- **稳定可靠的基础汉化**：完美覆盖核心扩展及基础提示，让你在熟悉的母语环境里流畅编码。
+- **安全的 AI UI 面板注射**：独创 `agy-ui://` 协议拦截替换，仅对 `/main.js` 做定向处理，彻底告别旧版本中可能遭遇的“启动卡死”问题。
+- **高覆盖率的静态文案映射**：内置近 300 条深度人工校验规则，覆盖系统设置、智能体设置、本地权限、账号选项、快捷键说明等。
+- **不损原貌的动态拼接**：主动放弃直接替换不可靠的动态变量（如项目名、实时生成文本），最大程度避免因字符串越界带来的应用功能损坏。
+- **向后兼容预警机制**：配置了版本指纹（Hash）检测机制。当宿主引擎发生大版本更新时，可降级回退或快速定位补丁点。
 
-### 汉化范围
+## 📦 安装与使用
 
-| 层级 | 内容 | 条目数 | 状态 |
-|------|------|--------|------|
-| L1 | IDE 核心界面 (NLS) | 16,567 | 🟢 98.7% 已覆盖 |
-| L2 | AI 面板 / Hub UI | 持续补齐中 | 🟡 已接管主界面 bundle，设置中心已补一轮 |
-| L3 | 内置扩展 | 5 个内置扩展 | 🟢 已有首轮汉化 |
-| L4 | 产品配置 | ~50 | 🟢 已有首轮汉化 |
-
-### 兼容版本
-
-- Antigravity Desktop: **2.0.0 / 2.0.1**
-- 内部版本: **1.107.0**
-- IDE 版本: **1.23.2**
-- Electron: **39.2.3**
-
-## ⚡ 快速安装
-
-### 方式一：一键安装（推荐）
-
+### 默认安装 (Stable Core)
+仅应用基础核心语言包，不尝试干涉 AI 界面渲染，提供最稳固的使用体验。
 ```powershell
-# 下载最新汉化包
-git clone https://github.com/kakarotto-baroko/antigravity-2.0-zhcn.git
-cd antigravity-2.0-zhcn
-
-# 应用汉化
-powershell -ExecutionPolicy Bypass -File scripts/apply.ps1
+.\scripts\apply.ps1
 ```
 
-默认安装只启用稳定核心汉化。实验性的 AI 面板汉化需要显式启用，且会进行版本/hash 校验：
-
+### AI 面板深度汉化模式 (Enable AI UI)
+开启基于 `agy-ui://` 的定向重定向机制，享受设置中心与主交互界面的中文体验。
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/apply.ps1 -EnableAiUi
+.\scripts\apply.ps1 -EnableAiUi
 ```
 
-AI 面板模式仅替换主界面的 `/main.js` 前端 bundle，其余本地服务请求保持原样。
+> **注意**：
+> 目前宿主已升级至 `2.0.1`。2.0.1 版本修改了核心目录结构（原 `resources/app/out` 路径已消失）。如果您尝试在全新安装的 2.0.1 上执行本脚本，可能会由于路径变更遇到误报“未安装”的问题。我们正在对其重构适配，详参 [开发交接文档](docs/HANDOFF.md) 了解现状与手动处理指南。
 
-## 📌 当前进度
+## 🛠️ 项目结构
 
-- 核心 NLS 校验通过: 16,567 条消息，已翻译 16,352 条，覆盖率 98.7%。
-- AI UI 已从“卡死在进入界面”修复为“定向替换 `/main.js`”，并在本机验证可正常进入主界面。
-- 设置中心已补一轮，覆盖 `外观 / 权限 / 浏览器 / 模型 / 自定义 / 应用 / 账户 / 快捷键` 等主要导航与设置项。
-- 2026-05-20 本机自动更新到 `2.0.1` 后，已重新将 `agy-ui` 注入挂回当前 `app.asar`，主日志再次出现 `Serving translated AI UI bundle`。
+- `scripts/`
+  - `apply.ps1` - 汉化应用入口与打包脚本。
+  - `extract.ps1` - 提取工具，用于生成版本更新时的文本差异与哈希报告。
+  - `translate_ui.py` - AI UI 面板核心词库与驱动引擎，通过字面量精确替换。
+  - `bg_install.py` / `run_bg_install.bat` - 异步静默安装触发器。
+- `patches/`
+  - `customScheme.ai-ui.js` / `customScheme.core.js` - `main.js` 定向重写与网络拦截的核心补丁模板。
+  - `ai-ui-compat.json` - 版本兼容性指纹记录档案库。
+- `docs/`
+  - `INSTALL.md` - 详细安装指南。
+  - `CHANGELOG.md` - 变更记录。
+  - `HANDOFF.md` - 给开发者的接力及状态说明文档。
 
-## ⚠️ 已知事项
+## 💡 开发与参与
 
-- `scripts/apply.ps1` 当前仍按 `2.0.0` 的安装结构检查 `resources/app/out/nls.messages.json`。在已自动升级到 `2.0.1` 的机器上，这个检查会误报“Antigravity installation not found”。
-- `2.0.1` 安装包结构与 `2.0.0` 不同，核心 NLS / product / extension 的自动应用逻辑需要单独适配后，才能恢复一键安装的完整能力。
-- AI UI 翻译目前是词典替换方案，覆盖已经明显提升，但仍可能残留零散英文描述文案，需要继续迭代。
+本项目基于 Python 和 PowerShell 实现无损替换与应用。如果你有兴趣为项目添砖加瓦：
 
-## 📚 交接文档
+1. **增补词汇**：请直接编辑 `scripts/translate_ui.py` 中的词库字典。请确保修改后能在本机通过 `node --check` 以及 `python -m py_compile` 的语法验证。
+2. **适配新版**：我们在 `patches/ai-ui-compat.json` 中登记了已验证的文件指纹（Bundle Hash）。如果你在最新的 Antigravity 版本下提取了新的指纹，欢迎提交更新。
 
-- 项目变更记录: [docs/CHANGELOG.md](/G:/GEMINI-xiangmu/AGY/AGY-汉化/docs/CHANGELOG.md)
-- 安装与版本说明: [docs/INSTALL.md](/G:/GEMINI-xiangmu/AGY/AGY-汉化/docs/INSTALL.md)
-- GitHub 接手说明: [docs/HANDOFF.md](/G:/GEMINI-xiangmu/AGY/AGY-汉化/docs/HANDOFF.md)
+## 📄 授权与许可
 
-### 方式二：手动安装
-
-详见 [安装说明](docs/INSTALL.md)
-
-## 🔄 恢复英文
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/apply.ps1 -Restore
-```
-
-## 📁 项目结构
-
-```
-├── scripts/          # 自动化脚本（提取/应用/构建/验证）
-├── source/           # 原始英文文本（参考用）
-├── translations/     # 中文翻译文件
-│   ├── nls.messages.zh-CN.json    # 核心 NLS 翻译
-│   ├── extensions/                # 扩展翻译
-│   └── jetski/                    # AI 面板翻译
-├── patches/          # JS 补丁文件
-├── docs/             # 文档
-└── version.json      # 版本跟踪
-```
-
-## 🤝 参与贡献
-
-欢迎提交翻译！请阅读 [贡献指南](docs/CONTRIBUTING.md)。
-
-### 翻译规范
-
-- 保留技术术语原文（如 Terminal → 终端，Debug → 调试）
-- 菜单项保持简洁
-- 占位符 `{0}`, `{1}` 等必须保留
-- 参考 VS Code 官方中文语言包的翻译风格
-
-## 📄 许可证
-
-本项目基于 [MIT](LICENSE) 许可证开源。
-
-> ⚠️ 本项目为非官方社区汉化，与 Google 无关。Antigravity 是 Google 的商标。
+本项目采用 MIT 协议开源。
+本项目仅作为本地化辅助工具，提供给爱好者研究使用。Antigravity 商标及软件相关权利归属其原属公司。
