@@ -8,6 +8,20 @@
 
 ## 自动安装
 
+### 最简单方式
+
+下载 ZIP 并解压后，直接双击：
+
+- [一键汉化-AI界面版.bat](/G:/GEMINI-xiangmu/AGY/AGY-汉化/一键汉化-AI界面版.bat)
+- [一键汉化-基础版.bat](/G:/GEMINI-xiangmu/AGY/AGY-汉化/一键汉化-基础版.bat)
+- [一键恢复英文.bat](/G:/GEMINI-xiangmu/AGY/AGY-汉化/一键恢复英文.bat)
+
+注意：
+- 双击前先彻底关闭 Antigravity
+- 跑完后重新打开 Antigravity
+
+### PowerShell 方式
+
 ```powershell
 git clone https://github.com/kakarotto-baroko/antigravity-2.0-zhcn.git
 cd antigravity-2.0-zhcn
